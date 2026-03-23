@@ -143,6 +143,8 @@ def add_title_page(doc, institution, student, group, faculty, department, topic,
 st.set_page_config(page_title="AI Thesis Assistant", layout="wide")
 st.title("🎓 AI Thesis Assistant")
 
+# ─── РАСШИРЕННЫЕ СПИСКИ ─────────────────────────────────────────────
+
 russia_universities = [
     "МГУ им. М.В. Ломоносова (Москва)",
     "СПбГУ (Санкт-Петербург)",
@@ -269,38 +271,45 @@ hakassia_schools = [
     "СОШ №19 (Черногорск)",
     "Другие / вручную"
 ]
-if education_type == "ВУЗ":
-    univ_list = hakassia_universities if region == "Республика Хакасия" else russia_universities
-    raw = st.sidebar.selectbox("Вуз", univ_list)
-    institution = st.sidebar.text_input("Или введите вручную", value=raw if "Другие" not in raw else "")
-else:
-    institution = st.sidebar.text_input("Учебное заведение")
 
-st.sidebar.header("Данные работы")
+st.sidebar.header("Учебное заведение")
+
+region = st.sidebar.selectbox("Регион", ["Россия", "Хакасия"])
+education_type = st.sidebar.selectbox("Тип", ["ВУЗ", "Колледж", "Школа"])
+
+if education_type == "ВУЗ":
+    data = hakassia_universities if region == "Хакасия" else russia_universities
+elif education_type == "Колледж":
+    data = hakassia_colleges if region == "Хакасия" else russia_colleges
+else:
+    data = hakassia_schools if region == "Хакасия" else russia_schools
+
+raw = st.sidebar.selectbox("Выбор", data)
+institution = st.sidebar.text_input("Или вручную", value=raw if "Другие" not in raw else "")
+
+st.sidebar.header("Данные")
 student = st.sidebar.text_input("ФИО", "Иванов Иван Иванович")
-group = st.sidebar.text_input("Группа / класс", "11А")
+group = st.sidebar.text_input("Группа", "11А")
 faculty = st.sidebar.text_input("Факультет", "")
 department = st.sidebar.text_input("Кафедра", "")
 topic = st.sidebar.text_input("Тема", "Исследование...")
 supervisor = st.sidebar.text_input("Руководитель", "Петрова А.А.")
 year = st.sidebar.text_input("Год", "2026")
-work_type = st.sidebar.selectbox("Тип работы", ["КУРСОВАЯ РАБОТА", "ДИПЛОМ"])
+work_type = st.sidebar.selectbox("Тип работы", ["Курсовая", "Диплом"])
 
-uploaded_file = st.file_uploader("Загрузите .docx-файл", type=["docx"])
+uploaded_file = st.file_uploader("Загрузите .docx", type=["docx"])
 
-if uploaded_file is not None:
-    doc_bytes = uploaded_file.read()
-    doc = Document(io.BytesIO(doc_bytes))
-    full_text = "\n".join(p.text for p in doc.paragraphs if p.text.strip())
+if uploaded_file:
+    doc = Document(uploaded_file)
+    text = "\n".join(p.text for p in doc.paragraphs if p.text.strip())
 
-    if st.button("🔍 Проверить и оформить"):
+    if st.button("Проверить и оформить"):
         try:
-            with st.spinner("Проверка..."):
-                token = get_gigachat_token()
-                ai_report = check_with_gigachat(full_text, token)
+            token = get_gigachat_token()
+            result = check_with_gigachat(text, token)
 
             st.subheader("Отчёт")
-            st.markdown(ai_report)
+            st.write(result)
 
             add_title_page(doc, institution, student, group, faculty, department, topic, supervisor, year, work_type)
             format_gost(doc)
@@ -309,11 +318,7 @@ if uploaded_file is not None:
             doc.save(bio)
             bio.seek(0)
 
-            st.download_button(
-                "📥 Скачать готовый файл",
-                data=bio,
-                file_name="готовый.docx"
-            )
+            st.download_button("Скачать файл", data=bio, file_name="готовый.docx")
 
         except Exception as e:
             st.error(str(e))
