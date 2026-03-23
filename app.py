@@ -82,8 +82,6 @@ def format_gost(doc):
 st.set_page_config(page_title="AI Thesis Assistant", layout="wide")
 
 st.title("🎓 AI Thesis Assistant")
-
-        try:
             with st.spinner("Получаем токен..."):
                 token = get_gigachat_token()
 
