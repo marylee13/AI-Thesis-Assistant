@@ -5,15 +5,13 @@ from docx.enum.text import WD_PARAGRAPH_ALIGNMENT
 import io
 import requests
 import uuid
-import json
 import urllib3
 
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
-CLIENT_ID = "019d0ffe-8561-7638-8151-d347f82de15f"
-
 AUTH_BASE64 = "MDE5ZDBmZmUtODU2MS03NjM4LTgxNTEtZDM0N2Y4MmRlMTVmOjRiMDMwNzgyLTdhYTYtNGVlYy1iOWVjLTdmZmY3NmRkMTc5OA=="
 
+# ─── GigaChat ─────────────────────────────────────────────
 def get_gigachat_token():
     url = "https://ngw.devices.sberbank.ru:9443/api/v2/oauth"
 
@@ -44,14 +42,8 @@ def check_with_gigachat(text, token):
     payload = {
         "model": "GigaChat:latest",
         "messages": [
-            {
-                "role": "system",
-                "content": "Ты строгий преподаватель. Проверяй работу по ГОСТ."
-            },
-            {
-                "role": "user",
-                "content": text[:12000]
-            }
+            {"role": "system", "content": "Ты строгий преподаватель. Проверяй работу по ГОСТ."},
+            {"role": "user", "content": text[:12000]}
         ]
     }
 
@@ -62,6 +54,7 @@ def check_with_gigachat(text, token):
 
     return response.json()["choices"][0]["message"]["content"]
 
+# ─── ГОСТ ─────────────────────────────────────────────
 def format_gost(doc):
     for section in doc.sections:
         section.left_margin = Cm(3)
@@ -70,78 +63,89 @@ def format_gost(doc):
         section.bottom_margin = Cm(2)
 
     for paragraph in doc.paragraphs:
-        if not paragraph.text.strip():
-            continue
-        for run in paragraph.runs:
-            run.font.name = 'Times New Roman'
-            run.font.size = Pt(14)
-        paragraph.paragraph_format.line_spacing = 1.5
+        if paragraph.text.strip():
+            for run in paragraph.runs:
+                run.font.name = 'Times New Roman'
+                run.font.size = Pt(14)
+            paragraph.paragraph_format.line_spacing = 1.5
 
-def add_title_page(doc, institution, student, group, faculty, department, topic, supervisor, year, work_type):
+def add_title_page(doc, institution, student, group, topic, supervisor, year):
     title_doc = Document()
-    section = title_doc.sections[0]
-    section.left_margin = Cm(3)
-    section.right_margin = Cm(1.5)
-    section.top_margin = Cm(2)
-    section.bottom_margin = Cm(2)
 
     p = title_doc.add_paragraph(institution.upper())
     p.alignment = WD_PARAGRAPH_ALIGNMENT.CENTER
-    for run in p.runs:
-        run.font.name = 'Times New Roman'
-        run.font.size = Pt(14)
-        run.bold = True
-
-    title_doc.add_paragraph()
-
-    if faculty or department:
-        p = title_doc.add_paragraph(f"{faculty}\n{department}".strip())
-        p.alignment = WD_PARAGRAPH_ALIGNMENT.CENTER
 
     for _ in range(5):
         title_doc.add_paragraph()
 
-    p = title_doc.add_paragraph(work_type)
-    p.alignment = WD_PARAGRAPH_ALIGNMENT.CENTER
-
-    for _ in range(3):
-        title_doc.add_paragraph()
-
-    p = title_doc.add_paragraph("на тему:")
-    p.alignment = WD_PARAGRAPH_ALIGNMENT.CENTER
-
-    p = title_doc.add_paragraph(topic.upper())
-    p.alignment = WD_PARAGRAPH_ALIGNMENT.CENTER
-
-    for _ in range(6):
-        title_doc.add_paragraph()
-
-    p = title_doc.add_paragraph(f"Выполнил(а): {group}")
-    p.alignment = WD_PARAGRAPH_ALIGNMENT.RIGHT
-
-    p = title_doc.add_paragraph(student.upper())
-    p.alignment = WD_PARAGRAPH_ALIGNMENT.RIGHT
-
-    for _ in range(2):
-        title_doc.add_paragraph()
-
-    p = title_doc.add_paragraph("Руководитель:")
-    p.alignment = WD_PARAGRAPH_ALIGNMENT.RIGHT
-
-    p = title_doc.add_paragraph(supervisor)
-    p.alignment = WD_PARAGRAPH_ALIGNMENT.RIGHT
+    title_doc.add_paragraph("РАБОТА").alignment = WD_PARAGRAPH_ALIGNMENT.CENTER
+    title_doc.add_paragraph(topic.upper()).alignment = WD_PARAGRAPH_ALIGNMENT.CENTER
 
     for _ in range(5):
         title_doc.add_paragraph()
 
-    p = title_doc.add_paragraph(f"ГОРОД — {year}")
-    p.alignment = WD_PARAGRAPH_ALIGNMENT.CENTER
+    title_doc.add_paragraph(f"Выполнил: {student} ({group})").alignment = WD_PARAGRAPH_ALIGNMENT.RIGHT
+    title_doc.add_paragraph(f"Руководитель: {supervisor}").alignment = WD_PARAGRAPH_ALIGNMENT.RIGHT
+
+    for _ in range(5):
+        title_doc.add_paragraph()
+
+    title_doc.add_paragraph(year).alignment = WD_PARAGRAPH_ALIGNMENT.CENTER
 
     for element in reversed(title_doc.element.body):
         doc.element.body.insert(0, element)
 
+# ─── UI ─────────────────────────────────────────────
 st.set_page_config(page_title="AI Thesis Assistant", layout="wide")
 st.title("🎓 AI Thesis Assistant")
+
+institution = st.sidebar.text_input("Учебное заведение", "МГУ")
+student = st.sidebar.text_input("ФИО", "Иванов Иван Иванович")
+group = st.sidebar.text_input("Группа", "11А")
+topic = st.sidebar.text_input("Тема", "Исследование...")
+supervisor = st.sidebar.text_input("Руководитель", "Петров")
+year = st.sidebar.text_input("Год", "2026")
+
+uploaded_file = st.file_uploader("Загрузите .docx", type=["docx"])
+
+if uploaded_file is not None:
+    st.success("Файл загружен")
+
+    doc = Document(uploaded_file)
+    text = "\n".join(p.text for p in doc.paragraphs if p.text.strip())
+
+    if st.button("🚀 Проверить и оформить", key="main_button"):
+        try:
+            st.info("Получаем токен...")
+            token = get_gigachat_token()
+
+            st.info("Отправляем в GigaChat...")
+            result = check_with_gigachat(text, token)
+
+            st.success("Ответ получен")
+
+            st.subheader("Отчёт:")
+            st.write(result)
+
+            format_gost(doc)
+            add_title_page(doc, institution, student, group, topic, supervisor, year)
+
+            bio = io.BytesIO()
+            doc.save(bio)
+            bio.seek(0)
+
+            st.download_button(
+                "📥 Скачать файл",
+                data=bio,
+                file_name="готовый.docx",
+                key="download_btn"
+            )
+
+        except Exception as e:
+            st.error(f"Ошибка: {e}")
+
+else:
+    st.warning("Загрузите файл")
 
 # ─── РАСШИРЕННЫЕ СПИСКИ ─────────────────────────────────────────────
 
