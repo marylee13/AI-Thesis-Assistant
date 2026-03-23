@@ -11,7 +11,7 @@ urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 AUTH_BASE64 = "MDE5ZDBmZmUtODU2MS03NjM4LTgxNTEtZDM0N2Y4MmRlMTVmOjRiMDMwNzgyLTdhYTYtNGVlYy1iOWVjLTdmZmY3NmRkMTc5OA=="
 
-# ─── GigaChat ─────────────────────────────────────────────
+# ─── GigaChat ─────────────────────────────────────
 def get_gigachat_token():
     url = "https://ngw.devices.sberbank.ru:9443/api/v2/oauth"
 
@@ -54,7 +54,7 @@ def check_with_gigachat(text, token):
 
     return response.json()["choices"][0]["message"]["content"]
 
-# ─── ГОСТ ─────────────────────────────────────────────
+# ─── ГОСТ ─────────────────────────────────────
 def format_gost(doc):
     for section in doc.sections:
         section.left_margin = Cm(3)
@@ -95,18 +95,19 @@ def add_title_page(doc, institution, student, group, topic, supervisor, year):
     for element in reversed(title_doc.element.body):
         doc.element.body.insert(0, element)
 
-# ─── UI ─────────────────────────────────────────────
+# ─── UI ─────────────────────────────────────
 st.set_page_config(page_title="AI Thesis Assistant", layout="wide")
 st.title("🎓 AI Thesis Assistant")
 
-institution = st.sidebar.text_input("Учебное заведение", "МГУ")
-student = st.sidebar.text_input("ФИО", "Иванов Иван Иванович")
-group = st.sidebar.text_input("Группа", "11А")
-topic = st.sidebar.text_input("Тема", "Исследование...")
-supervisor = st.sidebar.text_input("Руководитель", "Петров")
-year = st.sidebar.text_input("Год", "2026")
+# Sidebar с уникальными key
+institution = st.sidebar.text_input("Учебное заведение", "МГУ", key="institution")
+student = st.sidebar.text_input("ФИО", "Иванов Иван Иванович", key="student")
+group = st.sidebar.text_input("Группа", "11А", key="group")
+topic = st.sidebar.text_input("Тема", "Исследование...", key="topic")
+supervisor = st.sidebar.text_input("Руководитель", "Петров", key="supervisor")
+year = st.sidebar.text_input("Год", "2026", key="year")
 
-uploaded_file = st.file_uploader("Загрузите .docx", type=["docx"])
+uploaded_file = st.file_uploader("Загрузите .docx", type=["docx"], key="file")
 
 if uploaded_file is not None:
     st.success("Файл загружен")
@@ -114,15 +115,13 @@ if uploaded_file is not None:
     doc = Document(uploaded_file)
     text = "\n".join(p.text for p in doc.paragraphs if p.text.strip())
 
-    if st.button("🚀 Проверить и оформить", key="main_button"):
+    if st.button("🚀 Проверить и оформить", key="run"):
         try:
-            st.info("Получаем токен...")
-            token = get_gigachat_token()
+            with st.spinner("Получаем токен..."):
+                token = get_gigachat_token()
 
-            st.info("Отправляем в GigaChat...")
-            result = check_with_gigachat(text, token)
-
-            st.success("Ответ получен")
+            with st.spinner("Отправляем в GigaChat..."):
+                result = check_with_gigachat(text, token)
 
             st.subheader("Отчёт:")
             st.write(result)
@@ -138,15 +137,14 @@ if uploaded_file is not None:
                 "📥 Скачать файл",
                 data=bio,
                 file_name="готовый.docx",
-                key="download_btn"
+                key="download"
             )
 
         except Exception as e:
             st.error(f"Ошибка: {e}")
 
 else:
-    st.warning("Загрузите файл")
-
+    st.info("Загрузите файл")
 # ─── РАСШИРЕННЫЕ СПИСКИ ─────────────────────────────────────────────
 
 russia_universities = [
