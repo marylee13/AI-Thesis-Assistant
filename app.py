@@ -269,7 +269,6 @@ hakassia_schools = [
     "СОШ №19 (Черногорск)",
     "Другие / вручную"
 ]
-
 if education_type == "ВУЗ":
     univ_list = hakassia_universities if region == "Республика Хакасия" else russia_universities
     raw = st.sidebar.selectbox("Вуз", univ_list)
