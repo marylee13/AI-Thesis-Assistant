@@ -14,7 +14,7 @@ st.subheader("Оформление по ГОСТ + проверка через G
 
 # ─── Ключи GigaChat (твои актуальные) ───────────────────────────────────────────
 CLIENT_ID = "019d0ffe-8561-7638-8151-d347f82de15f"
-CLIENT_SECRET = "MDE5ZDBmZmUtODU2MS03NjM4LTgxNTEtZDM0N2Y4MmRlMTVmOjRiMDMwNzgyLTdhYTYtNGVlYy1iOWVjLTdmZmY3NmRkMTc5OA=="
+CLIENT_SECRET = "MDE5ZDBmZmUtODU2MS03NjM4LTgxNTEtZDM0N2Y4MmRlMTVmOmQwOGQ2ODMwLTVlZTMtNDgwMC04ZmVjLWU0MWNlOWJkNTBhYQ=="
 
 # ─── Получение токена ────────────────────────────────────────────────────────────
 def get_gigachat_token():
