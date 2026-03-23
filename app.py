@@ -11,7 +11,7 @@ urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 AUTH_BASE64 = "MDE5ZDBmZmUtODU2MS03NjM4LTgxNTEtZDM0N2Y4MmRlMTVmOjRiMDMwNzgyLTdhYTYtNGVlYy1iOWVjLTdmZmY3NmRkMTc5OA=="
 
-# ─── GigaChat ─────────────────────────────────────
+# ─── GigaChat ─────────────────────────────
 def get_gigachat_token():
     url = "https://ngw.devices.sberbank.ru:9443/api/v2/oauth"
 
@@ -22,9 +22,15 @@ def get_gigachat_token():
         "Authorization": f"Basic {AUTH_BASE64}"
     }
 
-    payload = "scope=GIGACHAT_API_PERS"
+    response = requests.post(
+        url,
+        headers=headers,
+        data="scope=GIGACHAT_API_PERS",
+        verify=False,
+        timeout=15
+    )
 
-    response = requests.post(url, headers=headers, data=payload, verify=False)
+    st.write("TOKEN RESPONSE:", response.text)  # ← ДЕБАГ
 
     if response.status_code != 200:
         raise Exception(f"OAUTH ERROR {response.status_code}: {response.text}")
@@ -43,18 +49,26 @@ def check_with_gigachat(text, token):
         "model": "GigaChat:latest",
         "messages": [
             {"role": "system", "content": "Ты строгий преподаватель. Проверяй работу по ГОСТ."},
-            {"role": "user", "content": text[:12000]}
+            {"role": "user", "content": text[:8000]}
         ]
     }
 
-    response = requests.post(url, headers=headers, json=payload, verify=False)
+    response = requests.post(
+        url,
+        headers=headers,
+        json=payload,
+        verify=False,
+        timeout=30
+    )
+
+    st.write("GIGACHAT RESPONSE:", response.text)  # ← ДЕБАГ
 
     if response.status_code != 200:
         raise Exception(f"GigaChat ERROR {response.status_code}: {response.text}")
 
     return response.json()["choices"][0]["message"]["content"]
 
-# ─── ГОСТ ─────────────────────────────────────
+# ─── ГОСТ ─────────────────────────────
 def format_gost(doc):
     for section in doc.sections:
         section.left_margin = Cm(3)
@@ -72,8 +86,7 @@ def format_gost(doc):
 def add_title_page(doc, institution, student, group, topic, supervisor, year):
     title_doc = Document()
 
-    p = title_doc.add_paragraph(institution.upper())
-    p.alignment = WD_PARAGRAPH_ALIGNMENT.CENTER
+    title_doc.add_paragraph(institution.upper()).alignment = WD_PARAGRAPH_ALIGNMENT.CENTER
 
     for _ in range(5):
         title_doc.add_paragraph()
@@ -84,7 +97,7 @@ def add_title_page(doc, institution, student, group, topic, supervisor, year):
     for _ in range(5):
         title_doc.add_paragraph()
 
-    title_doc.add_paragraph(f"Выполнил: {student} ({group})").alignment = WD_PARAGRAPH_ALIGNMENT.RIGHT
+    title_doc.add_paragraph(f"{student} ({group})").alignment = WD_PARAGRAPH_ALIGNMENT.RIGHT
     title_doc.add_paragraph(f"Руководитель: {supervisor}").alignment = WD_PARAGRAPH_ALIGNMENT.RIGHT
 
     for _ in range(5):
@@ -92,36 +105,39 @@ def add_title_page(doc, institution, student, group, topic, supervisor, year):
 
     title_doc.add_paragraph(year).alignment = WD_PARAGRAPH_ALIGNMENT.CENTER
 
-    for element in reversed(title_doc.element.body):
-        doc.element.body.insert(0, element)
+    for el in reversed(title_doc.element.body):
+        doc.element.body.insert(0, el)
 
-# ─── UI ─────────────────────────────────────
+# ─── UI ─────────────────────────────
 st.set_page_config(page_title="AI Thesis Assistant", layout="wide")
 st.title("🎓 AI Thesis Assistant")
 
-# Sidebar с уникальными key
-institution = st.sidebar.text_input("Учебное заведение", "МГУ", key="institution")
-student = st.sidebar.text_input("ФИО", "Иванов Иван Иванович", key="student")
-group = st.sidebar.text_input("Группа", "11А", key="group")
+# sidebar
+institution = st.sidebar.text_input("Учебное заведение", "МГУ", key="inst")
+student = st.sidebar.text_input("ФИО", "Иванов Иван Иванович", key="stud")
+group = st.sidebar.text_input("Группа", "11А", key="grp")
 topic = st.sidebar.text_input("Тема", "Исследование...", key="topic")
-supervisor = st.sidebar.text_input("Руководитель", "Петров", key="supervisor")
-year = st.sidebar.text_input("Год", "2026", key="year")
+supervisor = st.sidebar.text_input("Руководитель", "Петров", key="sup")
+year = st.sidebar.text_input("Год", "2026", key="yr")
 
-uploaded_file = st.file_uploader("Загрузите .docx", type=["docx"], key="file")
+# ❗ ОДИН uploader
+uploaded_file = st.file_uploader("Загрузите .docx", type=["docx"])
 
-if uploaded_file is not None:
+if uploaded_file:
     st.success("Файл загружен")
 
     doc = Document(uploaded_file)
     text = "\n".join(p.text for p in doc.paragraphs if p.text.strip())
 
-    if st.button("🚀 Проверить и оформить", key="run"):
+    if st.button("🚀 Проверить и оформить", key="run_btn"):
         try:
             with st.spinner("Получаем токен..."):
                 token = get_gigachat_token()
 
             with st.spinner("Отправляем в GigaChat..."):
                 result = check_with_gigachat(text, token)
+
+            st.success("Ответ получен")
 
             st.subheader("Отчёт:")
             st.write(result)
@@ -136,13 +152,11 @@ if uploaded_file is not None:
             st.download_button(
                 "📥 Скачать файл",
                 data=bio,
-                file_name="готовый.docx",
-                key="download"
+                file_name="готовый.docx"
             )
 
         except Exception as e:
-            st.error(f"Ошибка: {e}")
-
+            st.error(str(e))
 else:
     st.info("Загрузите файл")
 # ─── РАСШИРЕННЫЕ СПИСКИ ─────────────────────────────────────────────
