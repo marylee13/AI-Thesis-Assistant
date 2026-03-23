@@ -12,7 +12,7 @@ st.set_page_config(page_title="AI Thesis Assistant", page_icon="🎓", layout="w
 st.title("🎓 AI Thesis Assistant")
 st.subheader("Оформление по ГОСТ + проверка через GigaChat (Сбер)")
 
-# ─── Ключи GigaChat (твои актуальные) ───────────────────────────────────────────
+# ─── КЛЮЧИ ──────────────────────────────────────────────────────
 CLIENT_ID = "019d0ffe-8561-7638-8151-d347f82de15f"
 CLIENT_SECRET = "MDE5ZDBmZmUtODU2MS03NjM4LTgxNTEtZDM0N2Y4MmRlMTVmOmQwOGQ2ODMwLTVlZTMtNDgwMC04ZmVjLWU0MWNlOWJkNTBhYQ=="
 
@@ -38,17 +38,19 @@ def get_gigachat_token():
             verify=False,
             timeout=15
         )
-        if response.status_code == 400:
-            st.error(f"400 при получении токена\nОтвет сервера:\n{response.text}\n\n"
-                     "Вероятные причины:\n"
-                     "1. Client Secret уже в base64 — вставь его **как есть**, без дополнительного кодирования\n"
-                     "2. Ключи устарели — создай новые на https://developers.sber.ru\n"
-                     "3. Неверный scope")
+
+        if response.status_code != 200:
+            st.error(f"Ошибка получения токена {response.status_code}\n"
+                     f"Ответ сервера:\n{response.text}\n\n"
+                     "Что проверить:\n"
+                     "1. Ключи — создай новые на https://developers.sber.ru\n"
+                     "2. Scope должен быть GIGACHAT_API_PERS\n"
+                     "3. Если 400 — ключи просрочены или заблокированы")
             st.stop()
-        response.raise_for_status()
+
         return response.json()["access_token"]
     except Exception as e:
-        st.error(f"Ошибка токена: {str(e)}\nОтвет: {response.text if 'response' in locals() else 'нет ответа'}")
+        st.error(f"Ошибка токена: {str(e)}")
         st.stop()
 
 # ─── Запрос к GigaChat ───────────────────────────────────────────────────────────
@@ -60,12 +62,18 @@ def check_with_gigachat(text, token):
         "X-Request-ID": str(uuid.uuid4()),
         "X-Client-ID": CLIENT_ID
     }
+
     payload = {
-        "model": "GigaChat",
+        "model": "GigaChat",  # или "GigaChat-Pro", если у тебя есть доступ
         "messages": [
-            {"role": "system", "content": "Ты строгий преподаватель. Проверяй по ГОСТ и ФГОС."},
-            {"role": "user", "content": f"""
-Проанализируй работу:
+            {
+                "role": "system",
+                "content": "Ты строгий российский преподаватель. Проверяй студенческие работы по ГОСТ и ФГОС."
+            },
+            {
+                "role": "user",
+                "content": f"""
+Проанализируй работу и дай отчёт:
 
 1. Структура:
    - Введение (актуальность, цель, задачи, объект, предмет)
@@ -75,15 +83,16 @@ def check_with_gigachat(text, token):
 
 2. Замечания:
    - Цель и задачи чёткие?
-   - Объект и предмет?
-   - Практическая часть?
-   - Литература по ГОСТ?
+   - Объект и предмет указаны?
+   - Есть практическая часть?
+   - Список литературы по ГОСТ?
 
-Текст:
+Текст работы:
 {text[:12000]}
 
-Отвечай кратко, с эмодзи ✅ ⚠️ ❌
-"""}
+Отвечай кратко, структурировано, с эмодзи ✅ ⚠️ ❌
+"""
+            }
         ],
         "temperature": 0.7,
         "max_tokens": 1200,
@@ -92,23 +101,25 @@ def check_with_gigachat(text, token):
 
     try:
         response = requests.post(
-            "https://ngw.devices.sberbank.ru:9443/api/v2/chat/completions",
+            "https://gigachat.devices.sberbank.ru/api/v1/chat/completions",
             headers=headers,
             json=payload,
             verify=False,
             timeout=60
         )
-        if response.status_code == 400:
-            st.error(f"400 Bad Request от GigaChat\n"
+
+        if response.status_code != 200:
+            st.error(f"GigaChat ошибка {response.status_code}\n"
                      f"Ответ сервера:\n{response.text}\n\n"
                      "Что проверить:\n"
                      "1. Создай новые ключи на https://developers.sber.ru\n"
-                     "2. Попробуй модель 'GigaChat-Pro' вместо 'GigaChat'")
+                     "2. Попробуй модель 'GigaChat-Pro'\n"
+                     "3. Токен просрочен — перезапусти приложение")
             st.stop()
-        response.raise_for_status()
+
         return response.json()["choices"][0]["message"]["content"]
     except Exception as e:
-        st.error(f"GigaChat ошибка: {str(e)}\nОтвет:\n{response.text if 'response' in locals() else 'нет ответа'}")
+        st.error(f"Ошибка при запросе к GigaChat: {str(e)}")
         st.stop()
 
 # ─── Титульный лист ────────────────────────────────────────────────────────────
@@ -203,7 +214,7 @@ def add_title_page(doc, institution, student, group, faculty, department, topic,
         run.font.name = 'Times New Roman'
         run.font.size = Pt(14)
 
-    # Вставка в начало основного документа
+    # Вставляем титульник в начало основного документа
     for element in reversed(title_doc.element.body):
         doc.element.body.insert(0, element)
 
