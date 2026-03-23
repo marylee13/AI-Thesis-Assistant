@@ -83,13 +83,6 @@ st.set_page_config(page_title="AI Thesis Assistant", layout="wide")
 
 st.title("🎓 AI Thesis Assistant")
 
-uploaded_file = st.file_uploader("Загрузите .docx", type=["docx"])
-
-if uploaded_file:
-    doc = Document(uploaded_file)
-    text = "\n".join(p.text for p in doc.paragraphs if p.text.strip())
-
-    if st.button("Проверить"):
         try:
             with st.spinner("Получаем токен..."):
                 token = get_gigachat_token()
