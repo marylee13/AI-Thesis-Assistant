@@ -6,6 +6,9 @@ import io
 import requests
 import uuid
 import json
+import urllib3
+
+urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 CLIENT_ID = "019d0ffe-8561-7638-8151-d347f82de15f"
 
@@ -23,7 +26,7 @@ def get_gigachat_token():
 
     payload = "scope=GIGACHAT_API_PERS"
 
-    response = requests.post(url, headers=headers, data=payload)
+    response = requests.post(url, headers=headers, data=payload, verify=False)
 
     if response.status_code != 200:
         raise Exception(f"OAUTH ERROR {response.status_code}: {response.text}")
@@ -47,16 +50,12 @@ def check_with_gigachat(text, token):
             },
             {
                 "role": "user",
-                "content": f"""
-Проанализируй работу и дай отчёт:
-
-{text[:12000]}
-"""
+                "content": text[:12000]
             }
         ]
     }
 
-    response = requests.post(url, headers=headers, json=payload)
+    response = requests.post(url, headers=headers, json=payload, verify=False)
 
     if response.status_code != 200:
         raise Exception(f"GigaChat ERROR {response.status_code}: {response.text}")
@@ -98,88 +97,51 @@ def add_title_page(doc, institution, student, group, faculty, department, topic,
     if faculty or department:
         p = title_doc.add_paragraph(f"{faculty}\n{department}".strip())
         p.alignment = WD_PARAGRAPH_ALIGNMENT.CENTER
-        for run in p.runs:
-            run.font.name = 'Times New Roman'
-            run.font.size = Pt(14)
 
     for _ in range(5):
         title_doc.add_paragraph()
 
     p = title_doc.add_paragraph(work_type)
     p.alignment = WD_PARAGRAPH_ALIGNMENT.CENTER
-    for run in p.runs:
-        run.font.name = 'Times New Roman'
-        run.font.size = Pt(16)
-        run.bold = True
 
     for _ in range(3):
         title_doc.add_paragraph()
 
     p = title_doc.add_paragraph("на тему:")
     p.alignment = WD_PARAGRAPH_ALIGNMENT.CENTER
-    for run in p.runs:
-        run.font.name = 'Times New Roman'
-        run.font.size = Pt(14)
 
     p = title_doc.add_paragraph(topic.upper())
     p.alignment = WD_PARAGRAPH_ALIGNMENT.CENTER
-    for run in p.runs:
-        run.font.name = 'Times New Roman'
-        run.font.size = Pt(16)
-        run.bold = True
 
     for _ in range(6):
         title_doc.add_paragraph()
 
     p = title_doc.add_paragraph(f"Выполнил(а): {group}")
     p.alignment = WD_PARAGRAPH_ALIGNMENT.RIGHT
-    for run in p.runs:
-        run.font.name = 'Times New Roman'
-        run.font.size = Pt(14)
 
     p = title_doc.add_paragraph(student.upper())
     p.alignment = WD_PARAGRAPH_ALIGNMENT.RIGHT
-    for run in p.runs:
-        run.font.name = 'Times New Roman'
-        run.font.size = Pt(14)
-        run.bold = True
 
     for _ in range(2):
         title_doc.add_paragraph()
 
     p = title_doc.add_paragraph("Руководитель:")
     p.alignment = WD_PARAGRAPH_ALIGNMENT.RIGHT
-    for run in p.runs:
-        run.font.name = 'Times New Roman'
-        run.font.size = Pt(14)
 
     p = title_doc.add_paragraph(supervisor)
     p.alignment = WD_PARAGRAPH_ALIGNMENT.RIGHT
-    for run in p.runs:
-        run.font.name = 'Times New Roman'
-        run.font.size = Pt(14)
-        run.bold = True
 
     for _ in range(5):
         title_doc.add_paragraph()
 
     p = title_doc.add_paragraph(f"ГОРОД — {year}")
     p.alignment = WD_PARAGRAPH_ALIGNMENT.CENTER
-    for run in p.runs:
-        run.font.name = 'Times New Roman'
-        run.font.size = Pt(14)
 
     for element in reversed(title_doc.element.body):
         doc.element.body.insert(0, element)
 
 st.set_page_config(page_title="AI Thesis Assistant", layout="wide")
-
 st.title("🎓 AI Thesis Assistant")
-
-st.sidebar.header("Учебное заведение")
-
-region = st.sidebar.selectbox("Регион", ["Россия (топ)", "Республика Хакасия"])
-education_type = st.sidebar.selectbox("Тип заведения", ["ВУЗ", "Колледж/техникум", "Школа"])
 
 russia_universities = [
     "МГУ им. М.В. Ломоносова (Москва)",
