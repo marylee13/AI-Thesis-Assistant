@@ -14,22 +14,20 @@ st.subheader("Оформление по ГОСТ + проверка через G
 
 # ─── ТВОИ АКТУАЛЬНЫЕ КЛЮЧИ ─────────────────────────────────────────────────────
 CLIENT_ID = "019d0ffe-8561-7638-8151-d347f82de15f"
-CLIENT_SECRET = "317e5e32-07df-49e1-9a82-7944c5cdd44e"
+CLIENT_SECRET = "317e5e32-07df-49e1-9a82-7944c5cdd44e"   
 
-# ─── Получение токена GigaChat (ИСПРАВЛЕННАЯ ВЕРСИЯ) ─────────────────────────────
+# ─── Получение токена GigaChat ─────────────────────────────────────────────────
 def get_gigachat_token():
-    # Client Secret уже является готовым base64-ключом — используем его напрямую
-    auth_base64 = CLIENT_SECRET
+    auth_base64 = CLIENT_SECRET  
 
     rq_uid = str(uuid.uuid4())
 
     headers = {
         "Content-Type": "application/x-www-form-urlencoded",
         "Accept": "application/json",
-        "Authorization": f"Basic {auth_base64}",   # ← правильно
+        "Authorization": f"Basic {auth_base64}",
         "RqUID": rq_uid
     }
-
     data = {"scope": "GIGACHAT_API_PERS"}
 
     try:
@@ -41,18 +39,17 @@ def get_gigachat_token():
             timeout=15
         )
 
-        # Дебаг — покажет точный ответ от Сбера
-        st.write("🔑 Ответ от OAuth-сервера:", response.text)
+        st.write("🔑 Ответ от OAuth-сервера:", response.text)  
 
         if response.status_code != 200:
-            st.error(f"Ошибка получения токена: {response.status_code}\n"
+            st.error(f"Ошибка получения токена {response.status_code}\n"
                      f"Ответ сервера:\n{response.text}\n\n"
-                     "Рекомендация: Создай **новые** ключи на https://developers.sber.ru")
+                     "Рекомендация: Создай новые ключи на https://developers.sber.ru")
             st.stop()
 
         return response.json()["access_token"]
     except Exception as e:
-        st.error(f"Ошибка при запросе токена: {str(e)}")
+        st.error(f"Ошибка токена: {str(e)}")
         st.stop()
 
 # ─── Проверка через GigaChat ───────────────────────────────────────────────────
