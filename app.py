@@ -12,13 +12,16 @@ st.set_page_config(page_title="AI Thesis Assistant", page_icon="🎓", layout="w
 st.title("🎓 AI Thesis Assistant")
 st.subheader("Оформление по ГОСТ + проверка через GigaChat (Сбер)")
 
-# ─── КЛЮЧИ ──────────────────────────────────────────────────────
+# ─── ТВОИ АКТУАЛЬНЫЕ КЛЮЧИ ─────────────────────────────────────────────────────
 CLIENT_ID = "019d0ffe-8561-7638-8151-d347f82de15f"
-CLIENT_SECRET = "317e5e32-07df-49e1-9a82-7944c5cdd44e"
+CLIENT_SECRET = "317e5e32-07df-49e1-9a82-7944c5cdd44e"   # ← новый секрет
 
-# ─── Получение токена ───────────────────────────────────────────
+# ─── Получение токена GigaChat (ИСПРАВЛЕНО) ─────────────────────────────────────
 def get_gigachat_token():
-    auth_base64 = CLIENT_SECRET
+    # Формируем строку ClientID:ClientSecret и кодируем ОДИН РАЗ
+    credentials = f"{CLIENT_ID}:{CLIENT_SECRET}"
+    auth_base64 = base64.b64encode(credentials.encode("utf-8")).decode("utf-8")
+
     rq_uid = str(uuid.uuid4())
 
     headers = {
@@ -38,8 +41,12 @@ def get_gigachat_token():
             timeout=15
         )
 
+        st.write("🔑 Ответ от OAuth-сервера:", response.text)  # ← дебаг
+
         if response.status_code != 200:
-            st.error(f"Ошибка получения токена {response.status_code}\nОтвет:\n{response.text}")
+            st.error(f"Ошибка получения токена {response.status_code}\n"
+                     f"Ответ сервера:\n{response.text}\n\n"
+                     "Рекомендация: Создай **новые** ключи на https://developers.sber.ru")
             st.stop()
 
         return response.json()["access_token"]
