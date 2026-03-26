@@ -14,11 +14,13 @@ st.subheader("Оформление по ГОСТ + проверка через G
 
 # ─── ТВОИ АКТУАЛЬНЫЕ КЛЮЧИ ─────────────────────────────────────────────────────
 CLIENT_ID = "019d0ffe-8561-7638-8151-d347f82de15f"
-CLIENT_SECRET = "317e5e32-07df-49e1-9a82-7944c5cdd44e"   
+CLIENT_SECRET = "317e5e32-07df-49e1-9a82-7944c5cdd44e"   # ← новый секрет
 
-# ─── Получение токена GigaChat ─────────────────────────────────────────────────
+# ─── Получение токена GigaChat (ИСПРАВЛЕНО) ─────────────────────────────────────
 def get_gigachat_token():
-    auth_base64 = CLIENT_SECRET  
+    # Формируем строку ClientID:ClientSecret и кодируем ОДИН РАЗ
+    credentials = f"{CLIENT_ID}:{CLIENT_SECRET}"
+    auth_base64 = base64.b64encode(credentials.encode("utf-8")).decode("utf-8")
 
     rq_uid = str(uuid.uuid4())
 
@@ -39,12 +41,12 @@ def get_gigachat_token():
             timeout=15
         )
 
-        st.write("🔑 Ответ от OAuth-сервера:", response.text)  
+        st.write("🔑 Ответ от OAuth-сервера:", response.text)  # ← дебаг
 
         if response.status_code != 200:
             st.error(f"Ошибка получения токена {response.status_code}\n"
                      f"Ответ сервера:\n{response.text}\n\n"
-                     "Рекомендация: Создай новые ключи на https://developers.sber.ru")
+                     "Рекомендация: Создай **новые** ключи на https://developers.sber.ru")
             st.stop()
 
         return response.json()["access_token"]
@@ -289,58 +291,4 @@ elif education_type == "Колледж/техникум":
     raw = st.sidebar.selectbox("Колледж/техникум", coll_list)
     institution = st.sidebar.text_input("Или введите вручную", value=raw if "Другие" not in raw else "")
 else:
-    school_list = hakassia_schools if region == "Республика Хакасия" else russia_schools
-    raw = st.sidebar.selectbox("Школа/лицей/гимназия", school_list)
-    institution = st.sidebar.text_input("Или введите вручную", value=raw if "Другие" not in raw else "")
-
-st.sidebar.header("Данные работы")
-student = st.sidebar.text_input("ФИО", "Иванов Иван Иванович")
-group = st.sidebar.text_input("Группа / класс", "11А")
-faculty = st.sidebar.text_input("Факультет / отделение", "")
-department = st.sidebar.text_input("Кафедра / специальность", "")
-topic = st.sidebar.text_input("Тема", "Исследование...")
-supervisor = st.sidebar.text_input("Руководитель", "Петрова А.А.")
-year = st.sidebar.text_input("Год", "2026")
-work_type = st.sidebar.selectbox("Тип работы", ["ИНДИВИДУАЛЬНЫЙ ПРОЕКТ", "ИССЛЕДОВАТЕЛЬСКАЯ РАБОТА", "ВЫПУСКНАЯ КВАЛИФИКАЦИОННАЯ РАБОТА", "БАКАЛАВРСКАЯ РАБОТА", "ДИПЛОМНАЯ РАБОТА (СПО)", "КУРСОВАЯ РАБОТА"])
-
-# ─── ЗАГРУЗКА ФАЙЛА ───────────────────────────────────────────────────────────────
-uploaded_file = st.file_uploader("Загрузите .docx-файл", type=["docx"])
-
-if uploaded_file is not None:
-    st.success(f"Файл загружен: **{uploaded_file.name}**")
-
-    try:
-        doc_bytes = uploaded_file.read()
-        doc = Document(io.BytesIO(doc_bytes))
-        full_text = "\n".join(p.text for p in doc.paragraphs if p.text.strip())
-
-        if st.button("🔍 Проверить через GigaChat + оформить по ГОСТ"):
-            with st.spinner("Получаем токен и проверяем работу..."):
-                token = get_gigachat_token()
-                ai_report = check_with_gigachat(full_text, token)
-
-            st.subheader("Отчёт GigaChat по содержанию")
-            st.markdown(ai_report)
-
-            with st.spinner("Оформляем документ..."):
-                add_title_page(doc, institution, student, group, faculty, department, topic, supervisor, year, work_type)
-                format_gost(doc)
-
-                bio = io.BytesIO()
-                doc.save(bio)
-                bio.seek(0)
-
-                st.success("Готово! Титульный лист добавлен, форматирование применено, отчёт получен.")
-
-                st.download_button(
-                    label="📥 Скачать готовый .docx",
-                    data=bio,
-                    file_name=f"проверено_gigachat_{uploaded_file.name}",
-                    mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-                )
-
-    except Exception as e:
-        st.error(f"Ошибка: {str(e)}")
-
-else:
-    st.info("Загрузите .docx-файл для проверки и оформления")
+    school_list = hakassia_schools if region == "Республика Хакасия" else russia
